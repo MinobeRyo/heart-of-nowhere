@@ -1,0 +1,36 @@
+{
+  "folders": [{ "name": "AFTERLIGHT — 月が残した街", "path": "." }],
+  "settings": {
+    "files.exclude": { "**/.npm-cache": true },
+    "search.exclude": { "**/node_modules": true, "**/dist": true, "**/.npm-cache": true }
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "AFTERLIGHT: 開発サーバー",
+        "type": "shell",
+        "command": "npm run dev -- --port 5174",
+        "options": { "cwd": "${workspaceFolder}" },
+        "isBackground": true,
+        "problemMatcher": []
+      },
+      {
+        "label": "AFTERLIGHT: テスト",
+        "type": "shell",
+        "command": "npm test",
+        "options": { "cwd": "${workspaceFolder}" },
+        "group": "test",
+        "problemMatcher": []
+      },
+      {
+        "label": "AFTERLIGHT: ビルド",
+        "type": "shell",
+        "command": "npm run build",
+        "options": { "cwd": "${workspaceFolder}" },
+        "group": "build",
+        "problemMatcher": []
+      }
+    ]
+  }
+}
