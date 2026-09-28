@@ -28,7 +28,7 @@ function init() {
   renderer.domElement.setAttribute('aria-label', '無人の夜の街。開始ボタンでゲームを開始できます。');
   renderer.domElement.tabIndex = 0;
   $('game').appendChild(renderer.domElement);
-  const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, .08, 750);
+  const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, .08, 750);
   camera.rotation.order = 'YXZ';
   const world = createWorld(scene);
   const player = new Player(world.colliders);

@@ -1,8 +1,10 @@
 import * as THREE from 'three';
+import { STREET } from './scale.js';
 
 // Quiet signs of an inhabited city. The repeated hardware shares instance pools;
 // painted signs use one atlas rather than individual glowing sign materials.
 export function createStreetDetails(scene, { box, solid, mats, intersections = [] }) {
+  const signX = STREET.curbX + .95;
   const cylinderGeometry = new THREE.CylinderGeometry(1, 1, 1, 12);
   const cylinderPools = new Map();
   const dummy = new THREE.Object3D();
@@ -75,7 +77,7 @@ export function createStreetDetails(scene, { box, solid, mats, intersections = [
   intersections.forEach((crossing, i) => {
     const z = typeof crossing === 'number' ? crossing : crossing.z;
     for (const side of [-1, 1]) {
-      const x = side * 13.15, signZ = z + side * 10.1;
+      const x = side * signX, signZ = z + side * 10.1;
       post(x, signZ, 3.5);
       sign(i % 3 === 1 ? 1 : 0, x, 3.07, signZ, .78, .78, side < 0 ? 0 : Math.PI);
       box(x, 2.45, signZ, .58, .22, .055, mats.paper, side < 0 ? 0 : Math.PI);
@@ -84,7 +86,7 @@ export function createStreetDetails(scene, { box, solid, mats, intersections = [
 
   // Short rails divide the walkways from parking, leaving both ends open.
   for (const [side, start, end] of [[-1, -82, -74], [-1, 4, 12], [1, -33, -25], [1, 99, 107]]) {
-    const x = side * 12.68;
+    const x = side * (STREET.curbX + .4);
     for (let z = start; z <= end; z += 2) {
       cylinders(x, .49, z, .055, .98, mats.paint);
       box(x, .07, z, .23, .13, .23, mats.dark);
@@ -92,18 +94,19 @@ export function createStreetDetails(scene, { box, solid, mats, intersections = [
     box(x, .84, (start + end) / 2, .075, .095, end - start, mats.paint);
     box(x, .4, (start + end) / 2, .05, .06, end - start, mats.metal);
     for (const z of [start, end]) box(x - side * .05, .84, z, .025, .12, .25, safetyPaint);
-    solid(x, .46, (start + end) / 2, .14, .92, end - start, false);
+    solid(x, .49, (start + end) / 2, .23, .98, end - start + .25, false);
   }
 
-  for (const [x, z] of [[-13.3, 72], [13.3, -43], [-13.3, -100]]) {
+  for (const [side, z] of [[-1, 72], [1, -43], [-1, -100]]) {
+    const x = side * (STREET.curbX + .5);
     cylinders(x, .14, z, .25, .28, mats.dark);
     cylinders(x, .58, z, .18, .8, fadedRed);
     cylinders(x, .98, z, .23, .13, fadedRed);
     cylinders(x, 1.07, z, .16, .08, mats.metal);
     cylinders(x, .69, z, .1, .67, fadedRed, Math.PI / 2);
-    for (const side of [-1, 1]) cylinders(x + side * .35, .69, z, .13, .09, mats.metal, Math.PI / 2);
+    for (const end of [-1, 1]) cylinders(x + end * .35, .69, z, .13, .09, mats.metal, Math.PI / 2);
     box(x, .79, z + .184, .16, .08, .018, safetyPaint);
-    solid(x, .5, z, .65, 1, .42, false);
+    solid(x, .555, z, .79, 1.11, .5, false);
   }
 
   // Service cabinets have separate doors, vents, handles and concrete plinths.
@@ -118,11 +121,11 @@ export function createStreetDetails(scene, { box, solid, mats, intersections = [
     for (let y = 1.01; y < 1.3; y += .065) box(front - side * .03, y, z, .022, .024, .58, mats.dark);
     box(front - side * .045, .74, z + .28, .045, .15, .055, mats.dark);
     box(front - side * .03, .51, z - .18, .025, .15, .18, safetyPaint);
-    solid(x, .78, z, .73, 1.56, 1.16);
+    solid(x, .785, z, .82, 1.57, 1.2);
   }
 
   for (const [side, z] of [[1, 60], [1, 66], [-1, -28], [-1, -34], [1, -91]]) {
-    const x = side * 13.08;
+    const x = side * (STREET.curbX + .85);
     cylinders(x, .66, z, .048, 1.32, mats.paint);
     box(x, 1.36, z, .23, .42, .19, mats.metal);
     box(x, 1.47, z + .104, .16, .1, .025, mats.glass);
@@ -130,16 +133,16 @@ export function createStreetDetails(scene, { box, solid, mats, intersections = [
     box(x, 1.19, z + .107, .11, .065, .025, mats.rust);
     box(x, .07, z, .23, .14, .23, mats.dark);
   }
-  post(13.25, 54, 3.13); sign(2, 13.25, 2.82, 54, .62, .69);
-  post(-13.25, -24, 3.13); sign(2, -13.25, 2.82, -24, .62, .69, Math.PI);
+  post(signX, 54, 3.13); sign(2, signX, 2.82, 54, .62, .69);
+  post(-signX, -24, 3.13); sign(2, -signX, 2.82, -24, .62, .69, Math.PI);
 
   // The existing shelter gains a glass rear wall, a windscreen and a timetable.
   box(-15.32, 1.72, 24, .055, 2.84, 5.7, glass);
   box(-14.2, 1.72, 21.15, 2.25, 2.84, .055, glass);
   for (const z of [21.15, 24, 26.85]) box(-15.37, 1.72, z, .08, 3.02, .08, mats.metal);
   box(-15.28, 1.01, 24, .025, .08, 5.58, mats.paper);
-  solid(-15.32, 1.5, 24, .12, 3, 5.7, false);
-  solid(-14.2, 1.5, 21.15, 2.25, 3, .12, false);
+  solid(-15.32, 1.72, 24, .055, 2.84, 5.7, false);
+  solid(-14.2, 1.72, 21.15, 2.25, 2.84, .055, false);
   post(-12.95, 24, 2.75);
   sign(3, -12.95, 2.05, 24, .68, 1.13, Math.PI / 2);
   box(-12.95, .17, 24, .44, .33, .44, mats.dark);

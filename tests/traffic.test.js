@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { getTrafficPhase, createTrafficSignals, TRAFFIC_CYCLE_SECONDS } from '../src/traffic.js';
+import { STREET } from '../src/scale.js';
 
 test('traffic has amber and all-red clearance between the two green phases', () => {
   assert.deepEqual(getTrafficPhase(0), { boulevard: 'green', crossStreet: 'red', pedestrian: 'red' });
@@ -41,14 +42,25 @@ test('signal geometry stays finite and only narrow pole colliders occupy pavemen
     intersections: [{ z: 39, offset: 0 }, { z: -10, offset: 12 }],
   });
   assert.equal(colliders.length, 8);
-  for (const crossing of [39, -10]) for (const x of [-12.65, 12.65]) for (const direction of [-1, 1]) {
+  for (const crossing of [39, -10]) for (const x of [-STREET.signalPoleX, STREET.signalPoleX]) for (const direction of [-1, 1]) {
     assert.ok(colliders.some(p => p[0] === x && Math.abs(p[2] - (crossing + direction * 5.8)) < 1e-6), 'each crosswalk needs a signal at both ends');
   }
   for (const [x, , , w, , d, climbable] of colliders) {
-    assert.equal(Math.abs(x), 12.65);
+    assert.equal(Math.abs(x), STREET.signalPoleX);
+    assert.ok(Math.abs(x) - w / 2 > STREET.curbX, 'signal poles sit beyond the curb');
     assert.ok(w <= .3 && d <= .3);
     assert.equal(climbable, false);
   }
+  const boulevardHeads = boxes.filter(p => p[1] === 5.6 && p[4] === .91 * .75);
+  assert.equal(boulevardHeads.length, 4);
+  for (const [x, , , width] of boulevardHeads) {
+    assert.equal(Math.abs(x), STREET.signalHeadX);
+    assert.ok(Math.abs(x) + width / 2 < STREET.roadHalfWidth, 'overhead signal heads stay above the roadway');
+    assert.equal(width, 2.42 * .75);
+  }
+  const pedestrianHeads = boxes.filter(p => p[1] === 2.9 && p[4] === 1.63 * .82);
+  assert.equal(pedestrianHeads.length, 8);
+  assert.ok(colliders.filter(p => p[4] === 3.65).length === 4);
   for (const args of boxes) assert.ok(args.slice(0, 6).every(Number.isFinite));
   for (const mesh of scene.children) {
     assert.equal(mesh.isInstancedMesh, true);

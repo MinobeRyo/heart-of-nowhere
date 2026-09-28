@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { STREET } from './scale.js';
 
 export const TRAFFIC_CYCLE_SECONDS = 44;
 
@@ -57,22 +58,22 @@ export function createTrafficSignals(scene, { box, solid, mats, intersections })
     }
   }
 
-  function pedestrianHead(x, y, z, rotation, lamps) {
+  function pedestrianHead(x, y, z, rotation, lamps, scale = .82) {
     const cos = Math.cos(rotation), sin = Math.sin(rotation);
-    const point = (lx, ly, lz) => [x + cos * lx + sin * lz, y + ly, z - sin * lx + cos * lz];
-    box(x, y, z, .77, 1.63, .32, mats.dark, rotation);
+    const point = (lx, ly, lz) => [x + (cos * lx + sin * lz) * scale, y + ly * scale, z + (-sin * lx + cos * lz) * scale];
+    box(x, y, z, .77 * scale, 1.63 * scale, .32 * scale, mats.dark, rotation);
     for (const height of [-.39, .39]) {
-      box(...point(0, height, .172), .64, .69, .025, mats.rubber, rotation);
-      box(...point(0, height + .36, .26), .78, .045, .38, mats.metal, rotation);
+      box(...point(0, height, .172), .64 * scale, .69 * scale, .025 * scale, mats.rubber, rotation);
+      box(...point(0, height + .36, .26), .78 * scale, .045 * scale, .38 * scale, mats.metal, rotation);
     }
     function bar(x1, y1, x2, y2, material, width = .068) {
       const dx = x2 - x1, dy = y2 - y1;
       const center = point((x1 + x2) / 2, (y1 + y2) / 2, .196);
       // Euler Y then Z follows the same face transform as the housing.
-      instance(unitBox, material, ...center, width, Math.hypot(dx, dy), .021, 0, rotation, -Math.atan2(dx, dy));
+      instance(unitBox, material, ...center, width * scale, Math.hypot(dx, dy) * scale, .021 * scale, 0, rotation, -Math.atan2(dx, dy));
     }
     function head(lx, ly, material) {
-      instance(lensGeometry, material, ...point(lx, ly, .2), .066, .023, .066, Math.PI / 2, 0, -rotation);
+      instance(lensGeometry, material, ...point(lx, ly, .2), .066 * scale, .023 * scale, .066 * scale, Math.PI / 2, 0, -rotation);
     }
     // Standing figure: head, torso, arms, and separated legs.
     head(0, .61, lamps.red);
@@ -95,25 +96,25 @@ export function createTrafficSignals(scene, { box, solid, mats, intersections })
     const state = { boulevard, crossStreet, pedestrian, offset, last: '' };
     groups.push(state);
     for (const side of [-1, 1]) {
-      const poleX = side * 12.65, poleZ = z + side * 5.8;
+      const poleX = side * STREET.signalPoleX, poleZ = z + side * 5.8;
       // Narrow cylindrical poles and small footings leave the pavement passable.
       instance(postGeometry, mats.metal, poleX, 3.35, poleZ, .115, 6.7, .115);
       instance(postGeometry, mats.dark, poleX, .15, poleZ, .235, .30, .235);
       box(poleX, .49, poleZ, .23, .18, .23, mats.roadmark);
       solid(poleX, 3.35, poleZ, .30, 6.7, .30, false);
-      box(side * 9.4, 6.48, poleZ, 6.55, .16, .16, mats.metal);
-      box(side * 6.3, 6.14, poleZ, .13, .7, .13, mats.metal);
+      box(side * (STREET.signalPoleX + STREET.signalHeadX) / 2, 6.48, poleZ, STREET.signalPoleX - STREET.signalHeadX + .2, .16, .16, mats.metal);
+      box(side * STREET.signalHeadX, 6.21, poleZ, .13, .55, .13, mats.metal);
       box(poleX, 5.18, poleZ, .20, .08, .20, mats.trim);
-      vehicleHead(side * 6.3, 5.64, poleZ, side > 0 ? 0 : Math.PI, boulevard);
+      vehicleHead(side * STREET.signalHeadX, 5.6, poleZ, side > 0 ? 0 : Math.PI, boulevard, .75);
       vehicleHead(poleX, 4.69, poleZ, side * Math.PI / 2, crossStreet, .72);
-      pedestrianHead(poleX - side * .26, 3.15, poleZ, -side * Math.PI / 2, pedestrian);
+      pedestrianHead(poleX - side * .26, 2.9, poleZ, -side * Math.PI / 2, pedestrian);
       // The far end of each zebra crossing needs its own inward-facing head.
       const farPoleZ = z - side * 5.8;
-      instance(postGeometry, mats.metal, poleX, 1.95, farPoleZ, .095, 3.9, .095);
+      instance(postGeometry, mats.metal, poleX, 1.825, farPoleZ, .095, 3.65, .095);
       instance(postGeometry, mats.dark, poleX, .13, farPoleZ, .205, .26, .205);
       box(poleX, .49, farPoleZ, .20, .18, .20, mats.roadmark);
-      solid(poleX, 1.95, farPoleZ, .26, 3.9, .26, false);
-      pedestrianHead(poleX - side * .24, 3.15, farPoleZ, -side * Math.PI / 2, pedestrian);
+      solid(poleX, 1.825, farPoleZ, .26, 3.65, .26, false);
+      pedestrianHead(poleX - side * .24, 2.9, farPoleZ, -side * Math.PI / 2, pedestrian);
       // A small weatherproof controller and conduits add recognizable infrastructure.
       box(poleX + side * .24, 1.27, poleZ, .26, .54, .36, mats.metal);
       box(poleX + side * .39, 1.27, poleZ, .014, .43, .25, mats.trim);

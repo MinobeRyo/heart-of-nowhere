@@ -4,6 +4,7 @@ import { createAlleyLayout } from './layout.js';
 import { buildingVolumes, createArchitecture } from './architecture.js';
 import { createTrafficSignals } from './traffic.js';
 import { createStreetDetails } from './streets.js';
+import { STREET } from './scale.js';
 
 export function createWorld(scene) {
   let seed = 317;
@@ -73,28 +74,31 @@ export function createWorld(scene) {
   }
   for (const {z} of intersections) {
     for (const side of [-1,1]) {
-      for (let x = -10.5; x <= 10.5; x += 1.75) box(x,-.026,z+side*5.8,1,.02,2.6,mats.roadmark);
-      box(side*5.9,-.028,z+side*8.1,10.3,.02,.26,mats.roadmark);
+      for (let x = -9.5; x <= 9.5; x += 1.58) box(x,-.026,z+side*5.8,.88,.02,2.6,mats.roadmark);
+      box(side*5.2,-.028,z+side*8.1,9.5,.02,.24,mats.roadmark);
       // Tactile paving at the mouths, with small separated curb blocks.
       for (const approach of [-1,1]) {
-        box(side*13.85,.014,z+approach*5.8,2.5,.035,1.3,mats.tactile);
-        for (let n=0;n<10;n++) box(side*13.85-1.12+n*.25,.04,z+approach*5.8,.055,.025,1.12,mats.trim);
+        const crossingX=side*(STREET.curbX+1.18);
+        box(crossingX,.014,z+approach*5.8,2.25,.035,1.3,mats.tactile);
+        for (let n=0;n<9;n++) box(crossingX-1+n*.25,.04,z+approach*5.8,.055,.025,1.12,mats.trim);
       }
     }
   }
   for (const side of [-1, 1]) {
     for (let z = -128; z < 125; z += 2) {
       if (intersections.some(c=>Math.abs(z-c.z)<8)) continue;
-      box(side*14.1,-.005,z,2.7,.07,1.94,mats.sidewalk);
-      box(side*12.65,.065,z,.24,.2,1.88,mats.trim);
-      box(side*12,-.02,z,.11,.018,1.94,mats.roadmark);
+      box(side*STREET.sidewalkCenter,-.005,z,STREET.sidewalkWidth,.07,1.94,mats.sidewalk);
+      box(side*STREET.curbX,.065,z,.24,.2,1.88,mats.trim);
+      box(side*STREET.roadHalfWidth,-.02,z,.11,.018,1.94,mats.roadmark);
+      // Longitudinal paving seams make the wider sidewalk read at walking scale.
+      box(side*13.35,.034,z,.035,.008,1.94,mats.dark);
     }
     for (const z of [-92,-34,60,66]) {
-      box(side*9.7,-.023,z,3.5,.019,.09,mats.roadmark);
-      box(side*8,-.023,z+2.5,.09,.019,5,mats.roadmark);
+      box(side*9,-.023,z,2.45,.019,.09,mats.roadmark);
+      box(side*7.8,-.023,z+2.5,.09,.019,5,mats.roadmark);
     }
     for (const z of [55, 9, -41, -91]) {
-      for (let i = 0; i < 9; i++) box(side * 12.2, .015, z + i * .13, .7, .025, .05, mats.dark);
+      for (let i = 0; i < 9; i++) box(side * (STREET.curbX-.38), .015, z + i * .13, .7, .025, .05, mats.dark);
     }
   }
 
@@ -183,8 +187,18 @@ export function createWorld(scene) {
     const facing = x < 0 ? 1 : -1, fx = x + facing * (w / 2 + .12);
     for (let i = -1; i <= 1; i++) {
       if (Math.abs(i * 4) + 1.4 > d / 2 - .2) continue;
-      box(fx, 1.9, z + i * 4, .07, 2.8, 2.8, i === 0 && index % 3 === 0 ? mats.warmDim : mats.glass);
-      box(fx + facing * .1, 1.9, z + i * 4, .06, 2.8, .07, mats.metal);
+      if (i === 0) {
+        // A ground-level door and handle give the street a consistent human scale.
+        box(fx,1.46,z,.08,2.82,1.46,mats.dark);
+        box(fx+facing*.055,1.6,z,.05,2.32,1.13,index%3===0?mats.warmDim:mats.glass);
+        for(const edge of [-.76,.76])box(fx+facing*.08,1.5,z+edge,.12,2.96,.09,mats.trim);
+        box(fx+facing*.08,2.96,z,.12,.1,1.61,mats.trim);
+        box(fx+facing*.15,1.38,z+.45,.11,.44,.055,mats.paint);
+        box(fx+facing*.19,.065,z,.42,.1,1.66,mats.metal);
+      } else {
+        box(fx,1.9,z+i*4,.07,2.8,2.8,mats.glass);
+        box(fx+facing*.1,1.9,z+i*4,.06,2.8,.07,mats.metal);
+      }
     }
     box(fx + facing * .5, 3.8, z, 1.4, .16, Math.min(d - 3, 16), mats.dark);
     const accent = index % 4 === 0 ? mats.pink : index % 4 === 1 ? mats.blue : mats.purple;
@@ -217,19 +231,21 @@ export function createWorld(scene) {
   }
 
   const rows = [62, 13, -36, -85];
+  const avenueBuildings = [];
   let index = 0;
   for (const z of rows) {
     for (const side of [-1, 1]) {
-      const height = side < 0 ? [29, 43, 34, 54][rows.indexOf(z)] : [35, 28, 48, 38][rows.indexOf(z)];
-      building(side * 28, z, 24, 32, height, index, { spire: index === 2 || index === 5 });
+      const height = side < 0 ? [34, 50, 40, 62][rows.indexOf(z)] : [41, 33, 56, 45][rows.indexOf(z)];
+      avenueBuildings.push(building(side * 28, z, 24, 32, height, index, { spire: index === 2 || index === 5 }));
       index++;
     }
   }
   // Lower stepping roofs offer approachable routes before the taller towers.
-  building(-24, 101, 16, 14, 11, 31);
-  building(26, 101, 20, 15, 16, 32);
+  const entryRoof = building(-24, 101, 16, 14, 13, 31);
+  building(26, 101, 20, 15, 18, 32);
   for (const lot of alleyLayout.footprints) {
-    const height = range(14, 39);
+    // Add one or two storeys, retaining the existing floor/window dimensions.
+    const height = range(14, 39) + (lot.w * lot.d > 320 ? 7.1 : 3.55);
     building(lot.x, lot.z, lot.w, lot.d, height, index++, { simple: lot.simple, stepped: true });
     // Roof-edge tubes and projecting neon panels pull the eye around corners.
     if (index % (lot.simple ? 6 : 3) === 0) {
@@ -269,16 +285,16 @@ export function createWorld(scene) {
   alleyLayout.passages.forEach((passage,index)=>architecture.passage(passage,index));
 
   // The Meridian: a layered, monumental tower at the end of the boulevard.
-  const landmark = building(0, -127, 30, 27, 55, 34);
-  box(0, 59, -127, 24, 8, 22, mats.stone2); solid(0, 59, -127, 24, 8, 22);
-  box(0, 67, -127, 17, 8, 17, mats.stone2); solid(0, 67, -127, 17, 8, 17);
-  box(0, 74, -127, 10, 6, 12, mats.dark);
-  box(0, 82, -127, .22, 12, .22, mats.trim);
-  box(0, 88.3, -127, .3, .6, .3, mats.blue);
-  for (const x of [-13.4, -11, 11, 13.4]) box(x, 28, -113.34, .1, 49, .08, x === -11 || x === 11 ? mats.blue : mats.warmDim);
+  const landmark = building(0, -127, 30, 27, 64, 34);
+  box(0, landmark.h+4, -127, 24, 8, 22, mats.stone2); solid(0, landmark.h+4, -127, 24, 8, 22);
+  box(0, landmark.h+12, -127, 17, 8, 17, mats.stone2); solid(0, landmark.h+12, -127, 17, 8, 17);
+  box(0, landmark.h+19, -127, 10, 6, 12, mats.dark);
+  box(0, landmark.h+27, -127, .22, 12, .22, mats.trim);
+  box(0, landmark.h+33.3, -127, .3, .6, .3, mats.blue);
+  for (const x of [-13.4, -11, 11, 13.4]) box(x, (landmark.h+1)/2, -113.34, .1, landmark.h-6, .08, x === -11 || x === 11 ? mats.blue : mats.warmDim);
   sign('MERIDIAN', 'THE LAST LIGHT PICTURE HOUSE', 0, 8.5, -113.25, 23, 5.3, '#afe9dc');
-  sign('03 : 17', 'THE NIGHT IS STILL YOUNG', 0, 47, -113.23, 18, 9, '#a6bbe9');
-  sign('月 の む こ う', '', 0, 60, -115.92, 19, 6, '#e2dfb4');
+  sign('03 : 17', 'THE NIGHT IS STILL YOUNG', 0, landmark.h-8, -113.23, 18, 9, '#a6bbe9');
+  sign('月 の む こ う', '', 0, landmark.h+5, -115.92, 19, 6, '#e2dfb4');
   for (let i = 0; i < 5; i++) box(0, .18 + i * .15, -110 - i * .9, 22 - i * 1.1, .3, 1.2, mats.trim);
   const archPoints = [];
   for (let i = 0; i <= 48; i++) { const a = i / 48 * Math.PI; archPoints.push([Math.cos(a) * 9, 12 + Math.sin(a) * 6, -113.2]); }
@@ -289,7 +305,7 @@ export function createWorld(scene) {
   for (let i = 0; i < 56; i++) {
     const a = i / 56 * Math.PI * 2;
     const x = Math.sin(a) * range(440, 500), z = Math.cos(a) * range(440, 500) - 100;
-    const h = range(36, 104), w = range(12, 23), d = range(13, 24);
+    const h = range(42, 116), w = range(12, 23), d = range(13, 24);
     box(x, h / 2, z, w, h, d, mats.stone3);
     for (let j = 0; j < 20; j++) box(x + range(-w * .4, w * .4), range(8, h - 3), z + d / 2 + .01, .8, 1.5, .02, rand() > .5 ? mats.warmDim : mats.ice);
     if (i % 4 === 0) box(x, h + 8, z, .15, 16, .15, mats.dark);
@@ -335,7 +351,7 @@ export function createWorld(scene) {
     const pool = new THREE.Mesh(new THREE.PlaneGeometry(9, 10), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: .48 }));
     pool.rotation.x = -Math.PI / 2; pool.position.set(x + flip * 1.4, -.02, z); scene.add(pool);
   }
-  for (const z of [81, 32, -17, -66, -106]) for (const side of [-1, 1]) streetlamp(side * 13.1, z, -side);
+  for (const z of [81, 32, -17, -66, -106]) for (const side of [-1, 1]) streetlamp(side * (STREET.curbX+.8), z, -side);
 
   const traffic = createTrafficSignals(scene, { box, solid, mats, intersections });
   createStreetDetails(scene, { box, solid, mats, intersections });
@@ -520,10 +536,10 @@ export function createWorld(scene) {
   // Five discoverable memories create a gentle route from street level to rooftops.
   const echoData = [
     { x: -11, y: 1.5, z: 27, title: '01 / 待ち合わせ', text: '「いつもの場所で。」それが最後のメッセージだった。' },
-    { x: -24, y: 12.5, z: 102, title: '02 / 帰り道', text: '誰かが灯した明かりは、まだ帰りを待っている。' },
-    { x: 27, y: 29.5, z: 17, title: '03 / 窓の向こう', text: '名前を忘れても、この夜の色は覚えている。' },
-    { x: -27, y: 35.5, z: -31, title: '04 / 雨の記憶', text: '降り続く雨だけが、街の時間を知っている。' },
-    { x: 0, y: 56.5, z: -116, title: '05 / 月が残したもの', text: '誰もいない世界にも、あなたが来た記憶が残る。' },
+    { x: -24, y: entryRoof.h+1.5, z: 102, title: '02 / 帰り道', text: '誰かが灯した明かりは、まだ帰りを待っている。' },
+    { x: 27, y: avenueBuildings[3].h+1.5, z: 17, title: '03 / 窓の向こう', text: '名前を忘れても、この夜の色は覚えている。' },
+    { x: -27, y: avenueBuildings[4].h+1.5, z: -31, title: '04 / 雨の記憶', text: '降り続く雨だけが、街の時間を知っている。' },
+    { x: 0, y: landmark.h+1.5, z: -116, title: '05 / 月が残したもの', text: '誰もいない世界にも、あなたが来た記憶が残る。' },
   ];
   for (const data of echoData) {
     const group = new THREE.Group(); group.position.set(data.x, data.y, data.z);
