@@ -13,33 +13,22 @@
     <div class="vignette"></div>
     <div class="grain"></div>
     <header class="topbar">
-      <a class="wordmark" href="./" aria-label="Afterlight ホーム"><svg viewBox="0 0 32 36" aria-hidden="true"><path d="M16 30C-7 14 7 0 16 10 25 0 39 14 16 30Z"/><path d="M16 18v15M12 28h8"/></svg><span>AFTERLIGHT</span></a>
-      <div class="top-status"><span class="status-dot"></span> THE CITY IS STILL AWAKE <span class="separator">/</span> <span>03:17 AM</span></div>
       <div class="top-actions"><button id="sound-button" class="icon-button" aria-label="環境音をオンにする" title="環境音"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4V5ZM16 9l5 6m0-6-5 6"/></svg></button><button id="help-button" class="icon-button" aria-label="操作方法" title="操作方法">?</button><button id="settings-button" class="icon-button" aria-label="設定" title="設定"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 17h16M8 4v6m8 4v6"/></svg></button></div>
     </header>
     <section id="intro" class="intro">
-      <div class="eyebrow"><span class="small-line"></span> AN EMPTY CITY. A HEART STILL BEATING.</div>
-      <h1>AFTER<span>LIGHT</span><i>月が残した街</i></h1>
-      <p class="intro-copy">誰もいない。けれど、灯りはまだ消えていない。<br />夜の底を歩いて、月にいちばん近い場所へ。</p>
-      <button id="start-button" class="start-button" disabled><span id="start-label">街を読み込み中</span><span class="button-arrow">↗</span></button>
-      <div class="intro-meta"><span>自由探索</span><span>壁登り</span><span>ヘッドホン推奨</span></div>
+      <button id="start-button" class="start-button" disabled><span id="start-label">読み込み中</span></button>
     </section>
-    <aside id="location-card" class="location-card"><div class="location-top"><span class="tiny-heart">◇</span><span>NO. 01 / THE CROSSING</span></div><h2>忘却の交差点</h2><p>最後の信号が、夜を繰り返す。</p><div class="location-bottom"><span>35° 00′ N &nbsp; 139° 00′ E</span><span>架空座標</span></div></aside>
     <div id="hud" class="hud" hidden>
-      <div class="area-label"><span id="area-en">THE CROSSING</span><strong id="area-name">忘却の交差点</strong></div>
-      <div class="objective"><span class="objective-diamond">◇</span><div><span class="micro-label">ECHOES OF THE CITY</span><p>街に残された光 <b id="echo-count">0 / 5</b></p></div></div>
+      <div id="echo-progress" class="echo-progress" role="img" aria-label="光の収集 0 / 5"><span></span><span></span><span></span><span></span><span></span></div>
       <div id="crosshair" class="crosshair"></div>
       <div id="context-hint" class="context-hint"></div>
-      <div class="altitude"><span>ALTITUDE</span><strong id="altitude">0.0 <small>m</small></strong><div class="altitude-rule"></div><span id="motion-state">ON THE STREET</span></div>
-      <div id="stamina-wrap" class="stamina-wrap"><span>GRIP <span id="stamina-label">100</span></span><div class="stamina-track"><div id="stamina-bar"></div></div></div>
-      <canvas id="minimap" width="300" height="300" aria-label="街のミニマップ"></canvas>
-      <div class="map-caption">N ↑ <span>M · MAP</span></div>
+      <div id="stamina-wrap" class="stamina-wrap" role="progressbar" aria-label="壁につかまれる残り体力" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><div class="stamina-track"><div id="stamina-bar"></div></div></div>
+      <canvas id="minimap" width="300" height="300" aria-label="街のミニマップ" hidden></canvas>
     </div>
-    <footer class="bottom-bar"><span class="build-label">A WORLD BETWEEN MIDNIGHT & MORNING</span><div class="control-strip"><span><kbd>W A S D</kbd> 歩く</span><span><kbd>MOUSE</kbd> 見回す</span><span><kbd>SPACE</kbd> 跳ぶ</span><span><kbd>W + SPACE</kbd> 壁につかまる</span><span class="extra-control"><kbd>SHIFT</kbd> 走る</span></div><span class="version">VOL. 001</span></footer>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <dialog id="pause-dialog" class="panel"><div class="panel-overline">THE NIGHT CAN WAIT</div><h2>少し、ひと休み。</h2><p>この街の時間は、あなたを待っています。</p><button id="resume-button" class="start-button">探索を続ける <span>↗</span></button><button id="respawn-button" class="text-button">交差点に戻る</button><div class="pause-tip">Esc で休憩 · H で操作方法 · R で交差点へ</div></dialog>
-    <dialog id="help-dialog" class="panel"><button class="close-button" data-close="help-dialog" aria-label="閉じる">×</button><div class="panel-overline">A FIELD GUIDE TO NOWHERE</div><h2>夜の歩き方</h2><dl class="help-grid"><dt>W A S D / 矢印</dt><dd>前後左右へ移動</dd><dt>マウス</dt><dd>視点を動かす</dd><dt>Shift</dt><dd>走る</dd><dt>Space</dt><dd>ジャンプ / 壁から跳ぶ</dd><dt>壁へ W + Space</dt><dd>壁に向かってジャンプしてつかまる</dd><dt>壁で W / S</dt><dd>上る / 下りる · 頂上で自動乗り越え</dd><dt>壁で Space / E</dt><dd>壁を蹴って跳ぶ / 手を離す</dd><dt>M / H</dt><dd>地図 / この操作ガイド</dd><dt>R / Esc</dt><dd>交差点へ戻る / 一時停止</dd></dl><p class="panel-note">壁につかまると GRIP を消費します。W を離すとその場でつかまり、Space を押し直すと壁を蹴ります。地面や屋上で休むと回復します。街と屋上に散らばる、5つの光を見つけてください。</p><p id="input-tip" class="panel-note">マウス固定が使えない環境では、画面をドラッグして見回せます。</p></dialog>
-    <dialog id="settings-dialog" class="panel"><button class="close-button" data-close="settings-dialog" aria-label="閉じる">×</button><div class="panel-overline">MAKE YOURSELF AT HOME</div><h2>夜の設定</h2><label class="setting-row">描画品質<select id="quality"><option value="high">高 · 発光と雨</option><option value="low">軽量 · 発光を抑える</option></select></label><label class="setting-row">マウス感度<input id="sensitivity" type="range" min="0.5" max="2" step="0.1" value="1" /></label><label class="setting-row">雨の表示<input id="rain-toggle" type="checkbox" checked /></label><label class="setting-row">環境音<input id="sound-toggle" type="checkbox" /></label><button id="fullscreen-button" class="text-button">全画面にする ↗</button><p class="panel-note">動作が重いときは「軽量」に切り替えてください。PC のキーボードとマウスに対応しています。</p></dialog>
+    <dialog id="pause-dialog" class="panel"><h2>一時停止</h2><button id="resume-button" class="start-button">再開</button><button id="respawn-button" class="text-button">開始位置に戻る</button></dialog>
+    <dialog id="help-dialog" class="panel"><button class="close-button" data-close="help-dialog" aria-label="閉じる">×</button><h2>操作方法</h2><dl class="help-grid"><dt>W A S D / 矢印</dt><dd>前後左右へ移動</dd><dt>マウス</dt><dd>視点を動かす</dd><dt>Shift</dt><dd>走る</dd><dt>Space</dt><dd>ジャンプ / 壁から跳ぶ</dd><dt>壁へ W + Space</dt><dd>壁に向かってジャンプしてつかまる</dd><dt>壁で W / S</dt><dd>上る / 下りる · 頂上で自動乗り越え</dd><dt>壁で A / D</dt><dd>左右に移動</dd><dt>壁で Space / E</dt><dd>壁を蹴って跳ぶ / 手を離す</dd><dt>M / H</dt><dd>地図 / この操作ガイド</dd><dt>R / Esc</dt><dd>開始位置へ戻る / 一時停止</dd></dl><p class="panel-note">壁につかまると体力を消費し、地面や屋上で回復します。W を離すとその場でつかまります。</p><p id="input-tip" class="panel-note">マウス固定が使えない環境では、画面をドラッグして見回せます。</p></dialog>
+    <dialog id="settings-dialog" class="panel"><button class="close-button" data-close="settings-dialog" aria-label="閉じる">×</button><h2>設定</h2><label class="setting-row">描画品質<select id="quality"><option value="high">高 · 発光と雨</option><option value="low">軽量 · 発光を抑える</option></select></label><label class="setting-row">マウス感度<input id="sensitivity" type="range" min="0.5" max="2" step="0.1" value="1" /></label><label class="setting-row">雨の表示<input id="rain-toggle" type="checkbox" checked /></label><label class="setting-row">環境音<input id="sound-toggle" type="checkbox" /></label><button id="fullscreen-button" class="text-button">全画面にする</button><p class="panel-note">動作が重いときは「軽量」に切り替えてください。</p></dialog>
     <div id="error-message" class="error-message" hidden><h2>街を読み込めませんでした</h2><p>WebGL 2 に対応したブラウザで開き直してください。</p><pre id="error-detail"></pre></div>
     <script type="module" src="/src/main.js"></script>
   </body>
