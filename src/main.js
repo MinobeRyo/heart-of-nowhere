@@ -5,7 +5,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { createWorld } from './world.js';
-import { Player, PLAYER_HEIGHT } from './physics.js';
+import { Player, EYE_HEIGHT } from './physics.js';
 import { CityAudio } from './audio.js';
 
 const $ = id => document.getElementById(id);
@@ -28,10 +28,17 @@ function init() {
   renderer.domElement.setAttribute('aria-label', '無人の夜の街。開始ボタンでゲームを開始できます。');
   renderer.domElement.tabIndex = 0;
   $('game').appendChild(renderer.domElement);
-  const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, .08, 750);
+  const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, .08, 750);
   camera.rotation.order = 'YXZ';
   const world = createWorld(scene);
   const player = new Player(world.colliders);
+  const wallViewOffset = new THREE.Vector3();
+  const cameraTarget = new THREE.Vector3();
+  function resetView() {
+    yaw = 0; pitch = .08;
+    wallViewOffset.set(0, 0, 0);
+    camera.position.set(player.position.x, player.position.y + EYE_HEIGHT, player.position.z);
+  }
   const audio = new CityAudio();
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
@@ -39,10 +46,12 @@ function init() {
   composer.addPass(bloom); composer.addPass(new OutputPass());
 
   const keys = new Set();
-  let started = false, playing = false, dragging = false, dragFallback = false, queuedJump = false;
+  let started = false, playing = false, dragging = false, dragFallback = false, queuedJump = false, queuedDash = false;
   let yaw = 0, pitch = .19, sensitivity = 1, elapsed = 0, accumulator = 0, previousTime = performance.now();
   let mapVisible = false, foundCount = 0, toastTimeout, echoTimeout, lastHud = 0;
   let quality = 'high';
+  const inspectionView = import.meta.env.DEV ? new URLSearchParams(location.search).get('view') : null;
+  let measuredFrames = 0, measuredMs = 0;
   const mapCtx = dom.minimap.getContext('2d');
   const input = {};
   const dialogs = ['pause-dialog','help-dialog','settings-dialog'].map($);
@@ -70,11 +79,11 @@ function init() {
   function closeDialogs() { dialogs.forEach(d => { if (d.open) d.close(); }); }
   function pause() {
     if (!started || !playing) return;
-    playing = false; keys.clear(); queuedJump = false; dragging = false; releaseMouse();
+    playing = false; keys.clear(); queuedJump = false; queuedDash = false; dragging = false; releaseMouse();
     closeDialogs(); dom['pause-dialog'].showModal();
   }
   function openPanel(id) {
-    playing = false; keys.clear(); queuedJump = false; dragging = false; releaseMouse(); closeDialogs(); $(id).showModal();
+    playing = false; keys.clear(); queuedJump = false; queuedDash = false; dragging = false; releaseMouse(); closeDialogs(); $(id).showModal();
   }
   function closePanel(id) {
     $(id).close();
@@ -99,12 +108,12 @@ function init() {
     started = true; document.body.classList.add('playing');
     dom.intro.classList.add('exiting');
     setTimeout(() => { dom.intro.hidden = true; }, 400);
-    dom.hud.hidden = false; pitch = .14; yaw = 0;
+    dom.hud.hidden = false; resetView();
     resume();
   }
   $('start-button').addEventListener('click', start);
   $('resume-button').addEventListener('click', resume);
-  $('respawn-button').addEventListener('click', () => { player.reset(); yaw = 0; pitch = .14; resume(); });
+  $('respawn-button').addEventListener('click', () => { player.reset(); resetView(); resume(); });
   $('help-button').addEventListener('click', () => openPanel('help-dialog'));
   $('settings-button').addEventListener('click', () => openPanel('settings-dialog'));
   document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => closePanel(button.dataset.close)));
@@ -149,7 +158,7 @@ function init() {
   renderer.domElement.addEventListener('pointerup', () => { dragging = false; });
   renderer.domElement.addEventListener('lostpointercapture', () => { dragging = false; });
   renderer.domElement.addEventListener('contextmenu', event => event.preventDefault());
-  const gameKeys = new Set(['KeyW','KeyA','KeyS','KeyD','KeyE','KeyR','KeyM','KeyH','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','ShiftLeft','ShiftRight']);
+  const gameKeys = new Set(['KeyW','KeyA','KeyS','KeyD','KeyE','KeyQ','KeyR','KeyM','KeyH','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','ShiftLeft','ShiftRight']);
   document.addEventListener('keydown', event => {
     if (!playing) return;
     if (gameKeys.has(event.code)) event.preventDefault();
@@ -157,11 +166,12 @@ function init() {
     keys.add(event.code);
     if (event.repeat) return;
     if (event.code === 'Space') queuedJump = true;
+    if (event.code === 'KeyQ') queuedDash = true;
     if (event.code === 'KeyH') openPanel('help-dialog');
     if (event.code === 'KeyM') {
       mapVisible = !mapVisible; dom.minimap.hidden = !mapVisible;
     }
-    if (event.code === 'KeyR') { player.reset(); yaw = 0; pitch = .14; }
+    if (event.code === 'KeyR') { player.reset(); resetView(); }
   });
   document.addEventListener('keyup', event => keys.delete(event.code));
   window.addEventListener('blur', () => { keys.clear(); if (playing) pause(); });
@@ -187,12 +197,13 @@ function init() {
     ctx.restore(); ctx.restore();
   }
   function updateHUD() {
-    dom['stamina-wrap'].classList.toggle('active', player.climbing || player.mantle || player.stamina < 99);
+    dom['stamina-wrap'].classList.toggle('active', player.climbing || player.wallRunning || player.mantle || player.stamina < 99);
     dom['stamina-wrap'].classList.toggle('low', player.stamina < 25);
     dom['stamina-bar'].style.width = `${player.stamina}%`;
     dom['stamina-wrap'].setAttribute('aria-valuenow', Math.ceil(player.stamina));
     dom.crosshair.classList.toggle('climb', !!player.nearWall);
-    dom['context-hint'].innerHTML = player.climbing ? '<kbd>W / S</kbd> <kbd>Space</kbd> <kbd>E</kbd>' : player.nearWall && player.stamina > 5 ? '<kbd>W + Space</kbd>' : '';
+    dom.crosshair.classList.toggle('dash-ready', !player.grounded && player.airDashAvailable);
+    dom['context-hint'].innerHTML = player.wallRunning ? '<kbd>Shift + W</kbd> <kbd>Space</kbd>' : player.climbing ? '<kbd>W / S</kbd> <kbd>Shift</kbd> <kbd>Space</kbd>' : player.nearWall && player.stamina > 5 ? '<kbd>W + Space</kbd>' : '';
     if (mapVisible) updateMap();
   }
 
@@ -210,18 +221,24 @@ function init() {
   });
 
   function frame(now) {
-    const dt = Math.min((now - previousTime) / 1000, .06); previousTime = now;
+    const frameMs = now - previousTime;
+    const dt = Math.min(frameMs / 1000, .06); previousTime = now;
     if (!document.hidden) elapsed += dt;
     if (playing) {
       input.forward = keys.has('KeyW') || keys.has('ArrowUp'); input.backward = keys.has('KeyS') || keys.has('ArrowDown');
       input.left = keys.has('KeyA') || keys.has('ArrowLeft'); input.right = keys.has('KeyD') || keys.has('ArrowRight');
       input.sprint = keys.has('ShiftLeft') || keys.has('ShiftRight'); input.jump = keys.has('Space') || queuedJump; input.release = keys.has('KeyE');
+      input.dash = keys.has('KeyQ') || queuedDash;
       accumulator += dt;
-      while (accumulator >= 1 / 120) { player.step(1 / 120, input, yaw); queuedJump = false; input.jump = keys.has('Space'); accumulator -= 1 / 120; }
-      const speed = Math.hypot(player.velocity.x, player.velocity.z);
-      const bob = player.grounded ? Math.sin(player.walkDistance * 2.4) * Math.min(speed / 6, 1) * .032 : 0;
-      camera.position.set(player.position.x, player.position.y + PLAYER_HEIGHT + bob, player.position.z);
-      camera.rotation.set(pitch, yaw, player.climbing ? Math.sin(elapsed * 8) * .006 : 0, 'YXZ');
+      while (accumulator >= 1 / 120) { player.step(1 / 120, input, yaw); queuedJump = false; queuedDash = false; input.jump = keys.has('Space'); input.dash = keys.has('KeyQ'); accumulator -= 1 / 120; }
+      const wall = player.attachedWall || player.runningWall;
+      wallViewOffset.lerp(cameraTarget.set(wall ? wall.nx * .4 : 0, 0, wall ? wall.nz * .4 : 0), 1 - Math.exp(-dt * 14));
+      cameraTarget.set(player.position.x + wallViewOffset.x, player.position.y + EYE_HEIGHT, player.position.z + wallViewOffset.z);
+      // Smooth vertical ledge transitions without adding head bob or camera roll.
+      camera.position.x = cameraTarget.x;
+      camera.position.z = cameraTarget.z;
+      camera.position.y += (cameraTarget.y - camera.position.y) * (1 - Math.exp(-dt * 26));
+      camera.rotation.set(pitch, yaw, 0, 'YXZ');
       for (const e of world.echoes) if (!e.found && Math.hypot(player.position.x - e.x, player.position.y + 1 - e.y, player.position.z - e.z) < 2.2) {
         e.found = true; e.group.visible = false; foundCount++; audio.chime();
         dom['echo-progress'].setAttribute('aria-label', `光の収集 ${foundCount} / 5`);
@@ -231,12 +248,25 @@ function init() {
         echoTimeout = setTimeout(() => dom['echo-progress'].classList.remove('show'), 3000);
       }
     } else if (!started) {
-      camera.position.set(Math.sin(elapsed * .035) * .6, 2.5, 68);
+      camera.position.set(Math.sin(elapsed * .035) * .6, 3.3, 68);
       camera.rotation.set(.21 + Math.sin(elapsed * .07) * .003, -.018 + Math.sin(elapsed * .05) * .004, 0, 'YXZ');
+      if (inspectionView === 'alley') { camera.position.set(56, EYE_HEIGHT, 64); camera.lookAt(56,4.2,39); }
+      if (inspectionView === 'roof') { camera.position.set(99,59,103); camera.lookAt(100,0,-37); }
+      if (inspectionView === 'trash') { camera.position.set(-10.5,EYE_HEIGHT,63); camera.lookAt(-14,1,58); }
+      if (inspectionView === 'sparks') {
+        const source=world.sparkSample.source;
+        camera.position.set(source.x+2.1,source.y-.6,source.z+5.6);camera.lookAt(source);
+      }
     }
-    world.update(elapsed, dt, camera.position);
+    const effectsTime=inspectionView==='sparks'&&!started ? world.sparkSample.period-world.sparkSample.phase+.22 : elapsed;
+    world.update(effectsTime, dt, camera.position);
     if (started && now - lastHud > 100) { updateHUD(); lastHud = now; }
     composer.render();
+    if (inspectionView && measuredFrames < 90) {
+      if (measuredFrames > 15) measuredMs += frameMs;
+      measuredFrames++;
+      if (measuredFrames === 90) console.info('Scene inspection '+JSON.stringify({ meanFrameMs: Math.round(measuredMs / 74), buildings: world.buildings.length, colliders: world.colliders.length }));
+    }
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

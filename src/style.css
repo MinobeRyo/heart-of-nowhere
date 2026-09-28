@@ -30,6 +30,7 @@ button:disabled { opacity: .5; cursor: wait; }
 .hud { position: fixed; inset: 0; pointer-events: none; }
 .crosshair { position: absolute; top: 50%; left: 50%; width: 3px; height: 3px; border-radius: 50%; background: #f6f7dfb3; box-shadow: 0 0 5px #0008; transform: translate(-50%, -50%); }
 .crosshair.climb { width: 10px; height: 10px; background: transparent; border: 1px solid #ddebba; transform: translate(-50%, -50%) rotate(45deg); }
+.crosshair.dash-ready { box-shadow: 0 0 7px #91e5ed; }
 .context-hint { position: absolute; left: 50%; top: calc(50% + 30px); transform: translateX(-50%); font-size: 10px; white-space: nowrap; color: #d5dedb; text-shadow: 0 1px 4px #000; }
 kbd { font: 10px ui-monospace, monospace; border: 1px solid #a0b2be48; border-radius: 3px; padding: 4px 6px; margin: 0 2px; background: #111b2970; }
 .stamina-wrap { position: absolute; bottom: 42px; left: 50%; width: 130px; transform: translateX(-50%); opacity: 0; transition: opacity .3s; }
