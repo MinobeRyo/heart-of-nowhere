@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { createAlleyLayout } from './layout.js';
+import { buildingVolumes, createArchitecture } from './architecture.js';
+import { createTrafficSignals } from './traffic.js';
+import { createStreetDetails } from './streets.js';
 
 export function createWorld(scene) {
   let seed = 317;
@@ -18,7 +21,7 @@ export function createWorld(scene) {
     warm: glow('#eccf82', 1.8), warmDim: glow('#958769', .8), ice: glow('#9ec9d3', 1.2), blue: glow('#72d6e2', 2.8),
     pink: glow('#e456b7', 3.7), purple: glow('#8e68ed', 3.1), red: glow('#c63b63', 2.8), white: glow('#d4e6db', 1.8),
     metal: material('#344153', .45, .65), rubber: material('#101218'), paint: material('#7c8190', .4, .6),
-    roadmark: material('#707e85', .8), sidewalk: material('#303c4a', .8), paper: material('#a9aea8'), rust: material('#635059'),
+    roadmark: material('#707e85', .8), sidewalk: material('#303c4a', .8), tactile: material('#777152', .92), paper: material('#a9aea8'), rust: material('#635059'),
   };
 
   function box(x, y, z, w, h, d, mat, ry = 0, rz = 0) {
@@ -61,19 +64,35 @@ export function createWorld(scene) {
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(1100, 1100), groundMat);
   ground.rotation.x = -Math.PI / 2; ground.position.y = -.055; scene.add(ground);
 
-  // Road paint, expansion joints, drainage grates and crossing stripes.
+  const intersections = [{ z:39,offset:0 },{ z:-9,offset:13 },{ z:-59,offset:27 },{ z:88,offset:8 }];
+  // Paired crossings frame each junction; curb cuts line up with the alleys.
   for (let z = -140; z < 120; z += 11) {
-    if ([39, -9, -59, 88].some(c => Math.abs(c - z) < 7)) continue;
+    if (intersections.some(c => Math.abs(c.z - z) < 11)) continue;
     box(-.15, -.035, z, .085, .015, 4.3, mats.roadmark);
     box(.15, -.035, z, .085, .015, 4.3, mats.roadmark);
   }
-  for (const z of [39, -9, -59, 88]) {
-    for (let x = -9; x <= 9; x += 2) { box(x, -.026, z, 1, .02, 4.2, mats.roadmark); }
-    box(0, -.028, z + 5, 20, .02, .2, mats.roadmark);
+  for (const {z} of intersections) {
+    for (const side of [-1,1]) {
+      for (let x = -10.5; x <= 10.5; x += 1.75) box(x,-.026,z+side*5.8,1,.02,2.6,mats.roadmark);
+      box(side*5.9,-.028,z+side*8.1,10.3,.02,.26,mats.roadmark);
+      // Tactile paving at the mouths, with small separated curb blocks.
+      for (const approach of [-1,1]) {
+        box(side*13.85,.014,z+approach*5.8,2.5,.035,1.3,mats.tactile);
+        for (let n=0;n<10;n++) box(side*13.85-1.12+n*.25,.04,z+approach*5.8,.055,.025,1.12,mats.trim);
+      }
+    }
   }
   for (const side of [-1, 1]) {
-    box(side * 12, -.02, -5, .11, .018, 244, mats.roadmark);
-    for (let z = -128; z < 125; z += 4) box(side * 14.1, -.005, z, 2.7, .07, 3.94, mats.sidewalk);
+    for (let z = -128; z < 125; z += 2) {
+      if (intersections.some(c=>Math.abs(z-c.z)<8)) continue;
+      box(side*14.1,-.005,z,2.7,.07,1.94,mats.sidewalk);
+      box(side*12.65,.065,z,.24,.2,1.88,mats.trim);
+      box(side*12,-.02,z,.11,.018,1.94,mats.roadmark);
+    }
+    for (const z of [-92,-34,60,66]) {
+      box(side*9.7,-.023,z,3.5,.019,.09,mats.roadmark);
+      box(side*8,-.023,z+2.5,.09,.019,5,mats.roadmark);
+    }
     for (const z of [55, 9, -41, -91]) {
       for (let i = 0; i < 9; i++) box(side * 12.2, .015, z + i * .13, .7, .025, .05, mats.dark);
     }
@@ -103,73 +122,90 @@ export function createWorld(scene) {
     return mesh;
   }
 
+  const architecture = createArchitecture({ box, solid, mats });
   function building(x, z, w, d, h, index, options = {}) {
     const base = options.material || [mats.stone, mats.stone2, mats.stone3][index % 3];
-    const b = solid(x, h / 2, z, w, h, d); buildings.push(b);
-    box(x, h / 2, z, w, h, d, base);
-    box(x, .45, z, w + .65, .9, d + .65, mats.dark);
-    box(x, 4.1, z, w + .4, .3, d + .4, mats.trim);
-    box(x, h - .4, z, w + .4, .7, d + .4, mats.trim);
-    box(x, h + .12, z, w - .3, .24, d - .3, mats.roof);
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(x + sx * (w / 2 - .4), h / 2, z + sz * (d / 2 - .4), .72, h, .72, mats.trim);
-    const floors = Math.floor((h - 6) / 3.55);
-    const frontCols = Math.floor((w - 3) / 2.9), sideCols = Math.floor((d - 3) / 2.9);
-    for (let row = 0; row < floors; row += options.simple ? 2 : 1) {
-      const y = 6.1 + row * 3.55;
-      for (const side of [-1, 1]) {
-        for (let c = 0; c < frontCols; c++) {
-          const wx = x + (c - (frontCols - 1) / 2) * 2.9;
-          const wz = z + side * (d / 2 + .035);
-          if (!options.simple) box(wx, y, wz, 1.42, 2.3, .08, mats.dark);
-          const lit = rand();
-          const wm = lit < .16 ? mats.warm : lit < .2 ? mats.ice : lit < .26 ? mats.warmDim : mats.glass;
-          box(wx, y, wz + side * .049, 1.1, 1.92, .055, wm);
-          if (!options.simple) {
-            box(wx, y, wz + side * .085, .07, 2, .045, mats.trim);
-            box(wx, y - .2, wz + side * .085, 1.15, .08, .045, mats.trim);
-            box(wx, y - 1.19, wz, 1.66, .15, .38, mats.trim);
+    const volumes = buildingVolumes(x, z, w, d, h, index, options.stepped);
+    const b = { minX:x-w/2,maxX:x+w/2,minY:0,maxY:h,minZ:z-d/2,maxZ:z+d/2 };
+    buildings.push(b);
+    for (const v of volumes) {
+      const height = v.top - v.bottom;
+      solid(v.x, v.bottom + height / 2, v.z, v.w, height, v.d);
+      box(v.x, v.bottom + height / 2, v.z, v.w, height, v.d, base);
+      box(v.x, v.top - .25, v.z, v.w + .4, .5, v.d + .4, mats.trim);
+      box(v.x, v.top + .1, v.z, v.w - .3, .2, v.d - .3, mats.roof);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+        box(v.x + sx * (v.w / 2 - .4), v.bottom + height / 2, v.z + sz * (v.d / 2 - .4), .72, height, .72, mats.trim);
+      }
+      const frontCols = Math.floor((v.w - 3) / 2.9), sideCols = Math.floor((v.d - 3) / 2.9);
+      // Every floor's windows follow its actual volume, including recessed tiers.
+      for (let y = Math.max(6.1, v.bottom + 1.7); y < v.top - 1.2; y += options.simple ? 7.1 : 3.55) {
+        for (const side of [-1, 1]) {
+          for (let c = 0; c < frontCols; c++) {
+            const wx = v.x + (c - (frontCols - 1) / 2) * 2.9;
+            const wz = v.z + side * (v.d / 2 + .035);
+            if (!options.simple) box(wx, y, wz, 1.42, 2.3, .08, mats.dark);
+            const lit = rand();
+            const wm = lit < .16 ? mats.warm : lit < .2 ? mats.ice : lit < .26 ? mats.warmDim : mats.glass;
+            box(wx, y, wz + side * .049, 1.1, 1.92, .055, wm);
+            if (!options.simple) {
+              box(wx, y, wz + side * .085, .07, 2, .045, mats.trim);
+              box(wx, y - .2, wz + side * .085, 1.15, .08, .045, mats.trim);
+              box(wx, y - 1.19, wz, 1.66, .15, .38, mats.trim);
+            }
           }
-        }
-        for (let c = 0; c < sideCols; c++) {
-          const wz = z + (c - (sideCols - 1) / 2) * 2.9;
-          const wx = x + side * (w / 2 + .035);
-          if (!options.simple) box(wx, y, wz, .08, 2.3, 1.42, mats.dark);
-          const lit = rand();
-          const wm = lit < .15 ? mats.warm : lit < .2 ? mats.ice : lit < .24 ? mats.warmDim : mats.glass;
-          box(wx + side * .049, y, wz, .055, 1.92, 1.1, wm);
-          if (!options.simple) {
-            box(wx + side * .085, y, wz, .045, 2, .07, mats.trim);
-            box(wx + side * .085, y - .2, wz, .045, .08, 1.15, mats.trim);
+          for (let c = 0; c < sideCols; c++) {
+            const wz = v.z + (c - (sideCols - 1) / 2) * 2.9;
+            const wx = v.x + side * (v.w / 2 + .035);
+            if (!options.simple) box(wx, y, wz, .08, 2.3, 1.42, mats.dark);
+            const lit = rand();
+            const wm = lit < .15 ? mats.warm : lit < .2 ? mats.ice : lit < .24 ? mats.warmDim : mats.glass;
+            box(wx + side * .049, y, wz, .055, 1.92, 1.1, wm);
+            if (!options.simple) {
+              box(wx + side * .085, y, wz, .045, 2, .07, mats.trim);
+              box(wx + side * .085, y - .2, wz, .045, .08, 1.15, mats.trim);
+            }
           }
         }
       }
+      // Raised buttresses, belt courses and ledges catch light from different angles.
+      for (let i = 0; i <= frontCols; i += options.simple ? 2 : 1) {
+        const px = v.x + (i - frontCols / 2) * 2.9;
+        const lower = Math.max(4.5, v.bottom);
+        if (v.top > lower) for (const side of [-1, 1]) box(px, (v.top + lower) / 2, v.z + side * (v.d / 2 + .1), .25, v.top - lower, .3, mats.trim);
+      }
+      if (!options.simple) for (let y = Math.max(10, v.bottom + 4); y < v.top - 2; y += 10.65) {
+        box(v.x,y,v.z,v.w+.65,.17,v.d+.65,mats.metal);
+      }
     }
-    // Vertical art-deco pilasters break up the silhouette and catch the moonlight.
-    for (let i = 0; i <= frontCols; i += options.simple ? 2 : 1) {
-      const px = x + (i - frontCols / 2) * 2.9;
-      for (const side of [-1, 1]) box(px, (h + 4.5) / 2, z + side * (d / 2 + .1), .25, h - 5, .3, mats.trim);
-    }
-    const facing = x < 0 ? 1 : -1;
-    const fx = x + facing * (w / 2 + .12);
-    // Dark shop windows and a few warm doors imply lives that have disappeared.
+    box(x, .45, z, w + .4, .9, d + .4, mats.dark);
+    box(x, 4.1, z, w + .4, .3, d + .4, mats.trim);
+    const facing = x < 0 ? 1 : -1, fx = x + facing * (w / 2 + .12);
     for (let i = -1; i <= 1; i++) {
+      if (Math.abs(i * 4) + 1.4 > d / 2 - .2) continue;
       box(fx, 1.9, z + i * 4, .07, 2.8, 2.8, i === 0 && index % 3 === 0 ? mats.warmDim : mats.glass);
       box(fx + facing * .1, 1.9, z + i * 4, .06, 2.8, .07, mats.metal);
     }
     box(fx + facing * .5, 3.8, z, 1.4, .16, Math.min(d - 3, 16), mats.dark);
     const accent = index % 4 === 0 ? mats.pink : index % 4 === 1 ? mats.blue : mats.purple;
+    const top = volumes.at(-1);
     if (index % 3 !== 2) {
       box(fx + facing * 1.1, 3.78, z, .055, .09, Math.min(d - 3, 16), accent);
-      box(fx + facing * .05, h - 1.1, z, .06, .085, d - 1, accent);
+      box(top.x + facing * (top.w / 2 + .08), h - 1.1, top.z, .06, .085, top.d - 1, accent);
     }
-    // Roof equipment remains collidable, so jumping on it is possible.
-    const rw = w * .2;
-    box(x + w * .22, h + 1.1, z - d * .2, rw, 2.2, d * .2, mats.metal);
-    solid(x + w * .22, h + 1.1, z - d * .2, rw, 2.2, d * .2);
-    for (let q = 0; q < 6; q++) box(x + w * .22, h + 1.1, z - d * .3 - .03 + q * .04, rw - .3, .055, .02, mats.dark);
-    box(x - w * .25, h + 3, z - d * .24, .09, 6, .09, mats.metal);
-    box(x - w * .25, h + 4.2, z - d * .24, 3.2, .065, .065, mats.metal);
-    box(x - w * .25, h + 5.3, z - d * .24, 1.8, .065, .065, mats.metal);
+    if (volumes.length === 1) architecture.facadeDetails(x, z, w, d, h, index, options.simple);
+    // Small rooftop service cores leave terraces around the uppermost floor.
+    const rw = top.w * .2;
+    box(top.x + top.w * .22, h + 1.1, top.z - top.d * .2, rw, 2.2, top.d * .2, mats.metal);
+    solid(top.x + top.w * .22, h + 1.1, top.z - top.d * .2, rw, 2.2, top.d * .2);
+    box(top.x - top.w * .25, h + 3, top.z - top.d * .24, .09, 6, .09, mats.metal);
+    box(top.x - top.w * .25, h + 4.2, top.z - top.d * .24, 3.2, .065, .065, mats.metal);
+    if (index < 8 && index % 2 === 0) {
+      const cx=x + Math.sign(x)*w*.12, cz=z-d*.22;
+      box(cx,h+4,cz,w*.56,8,d*.46,base); solid(cx,h+4,cz,w*.56,8,d*.46);
+      box(cx,h+8.2,cz,w*.6,.4,d*.5,mats.trim);
+      for(const side of [-1,1])for(let q=-1;q<=1;q++)box(cx+q*3,h+4.4,cz+side*(d*.23+.03),1.4,4.5,.06,q===0?mats.warmDim:mats.glass);
+    }
     if (options.spire) {
       box(x, h + 3.7, z, w * .55, 7.4, d * .5, base); solid(x, h + 3.7, z, w * .55, 7.4, d * .5);
       box(x, h + 7.5, z, w * .6, .2, d * .55, mats.trim);
@@ -194,7 +230,7 @@ export function createWorld(scene) {
   building(26, 101, 20, 15, 16, 32);
   for (const lot of alleyLayout.footprints) {
     const height = range(14, 39);
-    building(lot.x, lot.z, lot.w, lot.d, height, index++, { simple: lot.simple });
+    building(lot.x, lot.z, lot.w, lot.d, height, index++, { simple: lot.simple, stepped: true });
     // Roof-edge tubes and projecting neon panels pull the eye around corners.
     if (index % (lot.simple ? 6 : 3) === 0) {
       const front = lot.z + lot.d / 2 + .14;
@@ -230,6 +266,7 @@ export function createWorld(scene) {
     box(court.x,.015,court.z,court.w-1,.025,court.d-1,mats.sidewalk);
     box(court.x, .038,court.z,court.w-2,.012,.08,mats.purple);
   }
+  alleyLayout.passages.forEach((passage,index)=>architecture.passage(passage,index));
 
   // The Meridian: a layered, monumental tower at the end of the boulevard.
   const landmark = building(0, -127, 30, 27, 55, 34);
@@ -300,14 +337,8 @@ export function createWorld(scene) {
   }
   for (const z of [81, 32, -17, -66, -106]) for (const side of [-1, 1]) streetlamp(side * 13.1, z, -side);
 
-  // A broken signal continues to run over the empty crossing.
-  for (const side of [-1, 1]) {
-    box(side * 11.7, 3.2, 40, .14, 6.4, .14, mats.metal);
-    box(side * 8.2, 6.35, 40, 7, .12, .12, mats.metal);
-    box(side * 5.2, 5.95, 40, .6, 1.15, .45, mats.dark);
-    box(side * 5.2, 6.28, 40.24, .25, .25, .04, mats.red);
-    box(side * 5.2, 5.65, 40.24, .25, .25, .04, mats.glass);
-  }
+  const traffic = createTrafficSignals(scene, { box, solid, mats, intersections });
+  createStreetDetails(scene, { box, solid, mats, intersections });
 
   function car(x, z, rotation, overturned = false, color = '#677584') {
     const group = new THREE.Group(); const paint = material(color, .35, .65);
@@ -519,6 +550,7 @@ export function createWorld(scene) {
   }
 
   function update(time, dt, cameraPosition) {
+    traffic.update(time);
     lightRefresh-=dt;
     if(lightRefresh<=0){
       lightRefresh=.2;

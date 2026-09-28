@@ -252,13 +252,22 @@ function init() {
       camera.rotation.set(.21 + Math.sin(elapsed * .07) * .003, -.018 + Math.sin(elapsed * .05) * .004, 0, 'YXZ');
       if (inspectionView === 'alley') { camera.position.set(56, EYE_HEIGHT, 64); camera.lookAt(56,4.2,39); }
       if (inspectionView === 'roof') { camera.position.set(99,59,103); camera.lookAt(100,0,-37); }
+      if (inspectionView === 'passage') { camera.position.set(56,EYE_HEIGHT,80); camera.lookAt(56,5.1,58); }
+      if (inspectionView === 'corner') { camera.position.set(72,EYE_HEIGHT,40.8); camera.lookAt(84,3.2,39); }
+      if (inspectionView === 'facade') { camera.position.set(-5,5.8,59); camera.lookAt(-22,17,46); }
+      if (inspectionView === 'traffic' || inspectionView === 'traffic-red') { camera.position.set(8,EYE_HEIGHT,53); camera.lookAt(8,4.6,36); }
       if (inspectionView === 'trash') { camera.position.set(-10.5,EYE_HEIGHT,63); camera.lookAt(-14,1,58); }
       if (inspectionView === 'sparks') {
         const source=world.sparkSample.source;
         camera.position.set(source.x+2.1,source.y-.6,source.z+5.6);camera.lookAt(source);
       }
     }
-    const effectsTime=inspectionView==='sparks'&&!started ? world.sparkSample.period-world.sparkSample.phase+.22 : elapsed;
+    let effectsTime=elapsed;
+    if (!started) {
+      if (inspectionView==='sparks') effectsTime=world.sparkSample.period-world.sparkSample.phase+.22;
+      if (inspectionView==='traffic') effectsTime=4;
+      if (inspectionView==='traffic-red') effectsTime=25;
+    }
     world.update(effectsTime, dt, camera.position);
     if (started && now - lastHud > 100) { updateHUD(); lastHud = now; }
     composer.render();
